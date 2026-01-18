@@ -140,8 +140,34 @@ class ClipboardWatcher:
 
     def _read_files_async(self) -> None:
         """Read file URIs from clipboard asynchronously."""
-        # Read as text since text/uri-list is text-based
-        self.clipboard.read_text_async(None, self._on_files_text_ready)
+        # Use read_value_async to get GFile list, or fall back to reading raw bytes
+        # Try reading as GFile list first (GTK4 way)
+        try:
+            self.clipboard.read_value_async(
+                Gdk.FileList,
+                GLib.PRIORITY_DEFAULT,
+                None,
+                self._on_file_list_ready
+            )
+        except Exception as e:
+            print(f"ClipboardWatcher: Error starting file read: {e}")
+            # Fall back to reading as text
+            self.clipboard.read_text_async(None, self._on_files_text_ready)
+
+    def _on_file_list_ready(self, clipboard: Gdk.Clipboard, result: Gio.AsyncResult) -> None:
+        """Handle async file list read completion."""
+        try:
+            value = clipboard.read_value_finish(result)
+            if value:
+                file_list = value  # This is a Gdk.FileList
+                files = file_list.get_files()
+                uris = [f.get_uri() for f in files if f]
+                if uris:
+                    self._handle_files_from_uris(uris)
+        except Exception as e:
+            print(f"ClipboardWatcher: Error reading file list: {e}")
+            # Fall back to reading as text
+            self.clipboard.read_text_async(None, self._on_files_text_ready)
 
     def _on_files_text_ready(self, clipboard: Gdk.Clipboard, result: Gio.AsyncResult) -> None:
         """Handle async file URI text read completion."""
@@ -153,7 +179,7 @@ class ClipboardWatcher:
             print(f"ClipboardWatcher: Error reading file URIs: {e}")
 
     def _handle_files_content(self, uri_text: str) -> None:
-        """Process file URI list from clipboard."""
+        """Process file URI list from clipboard (text format)."""
         # Parse URI list (one URI per line, may have comments starting with #)
         uris: List[str] = []
         for line in uri_text.strip().split("\n"):
@@ -164,6 +190,11 @@ class ClipboardWatcher:
                 if line.startswith("file://"):
                     uris.append(line)
 
+        if uris:
+            self._handle_files_from_uris(uris)
+
+    def _handle_files_from_uris(self, uris: List[str]) -> None:
+        """Process file URIs and add to store."""
         if not uris:
             return
 

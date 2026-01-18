@@ -27,6 +27,7 @@ class ClipItem:
     image_path: Optional[str] = None
     file_uris: Optional[List[str]] = None
     content_hash: str = ""
+    pinned: bool = False
 
     @classmethod
     def from_text(cls, text: str, content_hash: str = "") -> "ClipItem":

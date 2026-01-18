@@ -13,6 +13,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk
 
 from .clip_store import ClipStore
 from .clipboard_watcher import ClipboardWatcher
+from .database import Database
 from .popup_window import PopupWindow
 
 
@@ -29,8 +30,11 @@ class ClipNoteApp(Adw.Application):
         self.cache_dir = Path.home() / ".cache" / "clipnote" / "images"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
+        # Create shared database instance
+        self.database = Database()
+
         # Core components
-        self.store = ClipStore(max_items=100)
+        self.store = ClipStore(max_items=100, database=self.database)
         self.watcher: ClipboardWatcher = None
         self.window: PopupWindow = None
 
@@ -38,7 +42,7 @@ class ClipNoteApp(Adw.Application):
         """Handle application activation."""
         if not self.window:
             # First activation - create window and start watcher
-            self.window = PopupWindow(self, self.store)
+            self.window = PopupWindow(self, self.store, self.database)
 
             # Start clipboard monitoring
             clipboard = Gdk.Display.get_default().get_clipboard()

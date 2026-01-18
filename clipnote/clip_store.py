@@ -1,86 +1,79 @@
-"""In-memory storage for clipboard items."""
+"""Persistent storage for clipboard items using SQLite."""
 
 from typing import Callable, List, Optional
 
 from .clip_item import ClipItem, ClipType
+from .database import Database
 
 
 class ClipStore:
-    """Manages clipboard history in memory."""
+    """Manages clipboard history with SQLite persistence."""
 
-    def __init__(self, max_items: int = 100):
-        self._items: List[ClipItem] = []
+    def __init__(self, max_items: int = 100, database: Optional[Database] = None):
         self._max_items = max_items
         self._listeners: List[Callable[[], None]] = []
+        self._db = database or Database()
+
+        # Load existing items from database
+        self._items: List[ClipItem] = self._db.get_all_clips(limit=max_items)
 
     def add_item(self, item: ClipItem) -> None:
-        """Add a new item to the store (newest first)."""
+        """Add a new item to the store."""
         # Check for duplicate based on content hash
         if item.content_hash:
-            for existing in self._items:
-                if existing.content_hash == item.content_hash:
-                    # Move existing to front instead of adding duplicate
-                    self._items.remove(existing)
-                    existing.timestamp = item.timestamp
-                    self._items.insert(0, existing)
-                    self._notify_listeners()
-                    return
+            existing = self._db.get_clip_by_hash(item.content_hash)
+            if existing:
+                # Update timestamp and move to top
+                self._db.update_clip_timestamp(existing.id, item.timestamp)
+                self._reload_items()
+                self._notify_listeners()
+                return
 
-        self._items.insert(0, item)
-
-        # Trim if exceeds max
-        if len(self._items) > self._max_items:
-            self._items = self._items[: self._max_items]
-
+        # Add new item
+        self._db.add_clip(item)
+        self._reload_items()
         self._notify_listeners()
 
     def get_all_items(self) -> List[ClipItem]:
-        """Get all items (newest first)."""
+        """Get all items (pinned first, then newest)."""
         return self._items.copy()
 
     def search_items(self, query: str) -> List[ClipItem]:
-        """Filter items by search query."""
+        """Search items by query."""
         if not query:
             return self.get_all_items()
 
-        query_lower = query.lower()
-        results = []
-
-        for item in self._items:
-            if item.item_type == ClipType.TEXT:
-                if item.text_content and query_lower in item.text_content.lower():
-                    results.append(item)
-            elif item.item_type == ClipType.IMAGE:
-                # Images can be searched by their preview text
-                if query_lower in item.preview.lower():
-                    results.append(item)
-            elif item.item_type == ClipType.FILES:
-                # Files can be searched by their preview (filenames)
-                if query_lower in item.preview.lower():
-                    results.append(item)
-
-        return results
+        return self._db.search_clips(query, limit=self._max_items)
 
     def get_item_by_id(self, item_id: str) -> Optional[ClipItem]:
         """Get a specific item by ID."""
-        for item in self._items:
-            if item.id == item_id:
-                return item
-        return None
+        return self._db.get_clip_by_id(item_id)
 
     def remove_item(self, item_id: str) -> bool:
         """Remove an item by ID."""
-        for i, item in enumerate(self._items):
-            if item.id == item_id:
-                del self._items[i]
-                self._notify_listeners()
-                return True
-        return False
+        result = self._db.delete_clip(item_id)
+        if result:
+            self._reload_items()
+            self._notify_listeners()
+        return result
 
-    def clear(self) -> None:
-        """Clear all items."""
-        self._items.clear()
+    def toggle_pinned(self, item_id: str) -> bool:
+        """Toggle pinned status of an item. Returns new pinned state."""
+        new_state = self._db.toggle_clip_pinned(item_id)
+        self._reload_items()
         self._notify_listeners()
+        return new_state
+
+    def clear(self, keep_pinned: bool = True) -> int:
+        """Clear all items. Returns count of deleted items."""
+        count = self._db.clear_all_clips(keep_pinned=keep_pinned)
+        self._reload_items()
+        self._notify_listeners()
+        return count
+
+    def _reload_items(self) -> None:
+        """Reload items from database."""
+        self._items = self._db.get_all_clips(limit=self._max_items)
 
     def add_listener(self, callback: Callable[[], None]) -> None:
         """Add a listener to be notified when store changes."""
