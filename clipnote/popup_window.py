@@ -7,6 +7,8 @@ gi.require_version("Adw", "1")
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 
+from typing import Callable, Optional
+
 from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 from .clip_item import ClipItem, ClipType
@@ -17,14 +19,15 @@ from .image_utils import create_thumbnail, load_image_from_cache
 class ClipItemRow(Gtk.ListBoxRow):
     """A row widget representing a single clipboard item."""
 
-    def __init__(self, clip_item: ClipItem):
+    def __init__(self, clip_item: ClipItem, on_delete: Optional[Callable[[str], None]] = None):
         super().__init__()
         self.clip_item = clip_item
+        self._on_delete = on_delete
 
         # Main horizontal box
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         box.set_margin_start(12)
-        box.set_margin_end(12)
+        box.set_margin_end(8)
         box.set_margin_top(8)
         box.set_margin_bottom(8)
 
@@ -39,7 +42,20 @@ class ClipItemRow(Gtk.ListBoxRow):
             label.set_xalign(0)
             label.set_hexpand(True)
             label.set_ellipsize(Pango.EllipsizeMode.END)
-            label.set_max_width_chars(60)
+            label.set_max_width_chars(50)
+            box.append(label)
+        elif clip_item.item_type == ClipType.FILES:
+            # File icon
+            icon = Gtk.Image.new_from_icon_name("folder-documents-symbolic")
+            icon.set_pixel_size(24)
+            box.append(icon)
+
+            # File preview
+            label = Gtk.Label(label=clip_item.get_display_text())
+            label.set_xalign(0)
+            label.set_hexpand(True)
+            label.set_ellipsize(Pango.EllipsizeMode.END)
+            label.set_max_width_chars(50)
             box.append(label)
         else:
             # Image thumbnail
@@ -69,9 +85,24 @@ class ClipItemRow(Gtk.ListBoxRow):
         # Relative timestamp
         time_label = Gtk.Label(label=clip_item.get_relative_time())
         time_label.add_css_class("dim-label")
+        time_label.set_margin_end(8)
         box.append(time_label)
 
+        # Delete button
+        delete_btn = Gtk.Button()
+        delete_btn.set_icon_name("window-close-symbolic")
+        delete_btn.add_css_class("flat")
+        delete_btn.add_css_class("circular")
+        delete_btn.set_tooltip_text("Delete")
+        delete_btn.connect("clicked", self._on_delete_clicked)
+        box.append(delete_btn)
+
         self.set_child(box)
+
+    def _on_delete_clicked(self, button: Gtk.Button) -> None:
+        """Handle delete button click."""
+        if self._on_delete:
+            self._on_delete(self.clip_item.id)
 
 
 class PopupWindow(Adw.ApplicationWindow):
@@ -121,7 +152,12 @@ class PopupWindow(Adw.ApplicationWindow):
         self.listbox = Gtk.ListBox()
         self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.listbox.add_css_class("boxed-list")
-        self.listbox.connect("row-activated", self._on_row_activated)
+        # Don't connect row-activated - we handle Enter key separately
+        # Add double-click gesture to listbox
+        gesture = Gtk.GestureClick()
+        gesture.set_button(1)  # Left mouse button
+        gesture.connect("pressed", self._on_list_click)
+        self.listbox.add_controller(gesture)
         scrolled.set_child(self.listbox)
 
         # Empty state placeholder
@@ -152,17 +188,36 @@ class PopupWindow(Adw.ApplicationWindow):
         if keyval == Gdk.KEY_Escape:
             self.close()
             return True
+        elif keyval == Gdk.KEY_Return or keyval == Gdk.KEY_KP_Enter:
+            # Enter key - paste selected item
+            selected_row = self.listbox.get_selected_row()
+            if selected_row and hasattr(selected_row, "clip_item"):
+                self._restore_item(selected_row.clip_item)
+            return True
+        elif keyval == Gdk.KEY_Delete:
+            # Delete key - delete selected item
+            selected_row = self.listbox.get_selected_row()
+            if selected_row and hasattr(selected_row, "clip_item"):
+                self._delete_item(selected_row.clip_item.id)
+            return True
         return False
+
+    def _on_list_click(self, gesture: Gtk.GestureClick, n_press: int, x: float, y: float) -> None:
+        """Handle click on list - double-click to paste."""
+        if n_press == 2:  # Double-click
+            selected_row = self.listbox.get_selected_row()
+            if selected_row and hasattr(selected_row, "clip_item"):
+                self._restore_item(selected_row.clip_item)
 
     def _on_search_changed(self, entry: Gtk.SearchEntry) -> None:
         """Handle search text changes."""
         self._current_filter = entry.get_text()
         self._populate_list()
 
-    def _on_row_activated(self, listbox: Gtk.ListBox, row: ClipItemRow) -> None:
-        """Handle row activation (Enter or click)."""
-        if row and hasattr(row, "clip_item"):
-            self._restore_item(row.clip_item)
+    def _delete_item(self, item_id: str) -> None:
+        """Delete an item from the store."""
+        self.store.remove_item(item_id)
+        print(f"Deleted item: {item_id}")
 
     def _restore_item(self, item: ClipItem) -> None:
         """Copy item back to clipboard."""
@@ -177,6 +232,15 @@ class PopupWindow(Adw.ApplicationWindow):
                 content = Gdk.ContentProvider.new_for_value(texture)
                 self.clipboard.set_content(content)
                 print(f"Restored image: {item.preview}")
+        elif item.item_type == ClipType.FILES and item.file_uris:
+            # Restore file URIs to clipboard
+            uri_list = "\n".join(item.file_uris)
+            content = Gdk.ContentProvider.new_for_bytes(
+                "text/uri-list",
+                GLib.Bytes.new(uri_list.encode("utf-8"))
+            )
+            self.clipboard.set_content(content)
+            print(f"Restored files: {item.preview}")
 
         self.close()
 
@@ -197,7 +261,7 @@ class PopupWindow(Adw.ApplicationWindow):
 
         # Add rows
         for item in items:
-            row = ClipItemRow(item)
+            row = ClipItemRow(item, on_delete=self._delete_item)
             self.listbox.append(row)
 
         # Show empty state or list

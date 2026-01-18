@@ -54,6 +54,10 @@ class ClipStore:
                 # Images can be searched by their preview text
                 if query_lower in item.preview.lower():
                     results.append(item)
+            elif item.item_type == ClipType.FILES:
+                # Files can be searched by their preview (filenames)
+                if query_lower in item.preview.lower():
+                    results.append(item)
 
         return results
 
@@ -63,6 +67,15 @@ class ClipStore:
             if item.id == item_id:
                 return item
         return None
+
+    def remove_item(self, item_id: str) -> bool:
+        """Remove an item by ID."""
+        for i, item in enumerate(self._items):
+            if item.id == item_id:
+                del self._items[i]
+                self._notify_listeners()
+                return True
+        return False
 
     def clear(self) -> None:
         """Clear all items."""

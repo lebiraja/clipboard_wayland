@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import gi
 
@@ -54,8 +54,11 @@ class ClipboardWatcher:
 
         formats = self.clipboard.get_formats()
 
-        # Check for image first (more specific)
-        if formats.contain_mime_type("image/png") or formats.contain_mime_type("image/jpeg"):
+        # Check for file URIs first (file copies may also contain text)
+        if formats.contain_mime_type("text/uri-list"):
+            self._read_files_async()
+        # Check for image
+        elif formats.contain_mime_type("image/png") or formats.contain_mime_type("image/jpeg"):
             self._read_image_async()
         # Then check for text
         elif formats.contain_mime_type("text/plain") or formats.contain_mime_type("text/plain;charset=utf-8"):
@@ -134,3 +137,46 @@ class ClipboardWatcher:
     def _get_content_hash(self, content: str) -> str:
         """Generate a hash for content deduplication."""
         return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+
+    def _read_files_async(self) -> None:
+        """Read file URIs from clipboard asynchronously."""
+        # Read as text since text/uri-list is text-based
+        self.clipboard.read_text_async(None, self._on_files_text_ready)
+
+    def _on_files_text_ready(self, clipboard: Gdk.Clipboard, result: Gio.AsyncResult) -> None:
+        """Handle async file URI text read completion."""
+        try:
+            text = clipboard.read_text_finish(result)
+            if text:
+                self._handle_files_content(text)
+        except Exception as e:
+            print(f"ClipboardWatcher: Error reading file URIs: {e}")
+
+    def _handle_files_content(self, uri_text: str) -> None:
+        """Process file URI list from clipboard."""
+        # Parse URI list (one URI per line, may have comments starting with #)
+        uris: List[str] = []
+        for line in uri_text.strip().split("\n"):
+            line = line.strip()
+            if line and not line.startswith("#"):
+                # Handle potential \r from Windows-style line endings
+                line = line.rstrip("\r")
+                if line.startswith("file://"):
+                    uris.append(line)
+
+        if not uris:
+            return
+
+        # Generate content hash from sorted URIs
+        content_hash = self._get_content_hash("\n".join(sorted(uris)))
+
+        # Skip if same as last content
+        if content_hash == self._last_content_hash:
+            return
+
+        self._last_content_hash = content_hash
+
+        # Create clip item
+        item = ClipItem.from_files(uris, content_hash=content_hash)
+        self.store.add_item(item)
+        print(f"ClipboardWatcher: Added files clip - {item.preview}")
