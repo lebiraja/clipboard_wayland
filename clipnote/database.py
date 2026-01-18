@@ -184,6 +184,30 @@ class Database:
 
             return [self._row_to_clip(row) for row in cursor.fetchall()]
 
+    def delete_clips_before(self, timestamp: float) -> int:
+        """Delete clips older than timestamp (except pinned). Returns count."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM clips WHERE timestamp < ? AND pinned = 0",
+                (timestamp,)
+            )
+            return cursor.rowcount
+
+    def trim_clips(self, max_items: int) -> int:
+        """Delete oldest non-pinned clips to stay within limit. Returns count."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            # Get IDs of clips to keep (pinned + newest up to limit)
+            cursor.execute("""
+                DELETE FROM clips WHERE id NOT IN (
+                    SELECT id FROM clips
+                    ORDER BY pinned DESC, timestamp DESC
+                    LIMIT ?
+                )
+            """, (max_items,))
+            return cursor.rowcount
+
     def _row_to_clip(self, row: sqlite3.Row) -> ClipItem:
         """Convert a database row to a ClipItem."""
         file_uris = json.loads(row['file_uris']) if row['file_uris'] else None

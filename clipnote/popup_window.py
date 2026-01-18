@@ -15,6 +15,7 @@ from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 from .clip_item import ClipItem, ClipType
 from .clip_store import ClipStore
+from .config import ConfigManager
 from .database import Database
 from .image_utils import create_thumbnail, load_image_from_cache
 
@@ -352,10 +353,17 @@ class EmptyState(Gtk.Box):
 class PopupWindow(Adw.ApplicationWindow):
     """Main popup window for ClipNote."""
 
-    def __init__(self, app: Adw.Application, store: ClipStore, database: Optional[Database] = None):
+    def __init__(
+        self,
+        app: Adw.Application,
+        store: ClipStore,
+        database: Optional[Database] = None,
+        config_manager: Optional[ConfigManager] = None
+    ):
         super().__init__(application=app)
         self.store = store
         self.db = database or Database()
+        self.config_manager = config_manager or ConfigManager()
         self.clipboard = Gdk.Display.get_default().get_clipboard()
         self._current_filter = ""
         self._current_tab = "clipboard"
@@ -366,6 +374,9 @@ class PopupWindow(Adw.ApplicationWindow):
 
         # Listen for store changes
         self.store.add_listener(self._on_store_changed)
+
+        # Listen for config changes
+        self.config_manager.add_listener(self._on_config_changed)
 
     def _build_ui(self) -> None:
         """Build the UI components."""
@@ -407,6 +418,23 @@ class PopupWindow(Adw.ApplicationWindow):
         self.search_entry.add_css_class("search-entry")
         self.search_entry.connect("search-changed", self._on_search_changed)
         header.set_title_widget(self.search_entry)
+
+        # Private mode indicator (end of header)
+        self.private_mode_btn = Gtk.ToggleButton()
+        self.private_mode_btn.set_icon_name("security-high-symbolic")
+        self.private_mode_btn.set_tooltip_text("Private Mode (pauses clipboard monitoring)")
+        self.private_mode_btn.add_css_class("flat")
+        self.private_mode_btn.set_active(self.config_manager.config.private_mode)
+        self.private_mode_btn.connect("toggled", self._on_private_mode_toggled)
+        header.pack_end(self.private_mode_btn)
+
+        # Settings button (end of header)
+        settings_btn = Gtk.Button()
+        settings_btn.set_icon_name("emblem-system-symbolic")
+        settings_btn.set_tooltip_text("Settings")
+        settings_btn.add_css_class("flat")
+        settings_btn.connect("clicked", self._on_settings_clicked)
+        header.pack_end(settings_btn)
 
         main_box.append(header)
 
@@ -817,3 +845,26 @@ class PopupWindow(Adw.ApplicationWindow):
             content = Gdk.ContentProvider.new_for_value(body)
             self.clipboard.set_content(content)
         self.close()
+
+    # ===== SETTINGS & CONFIG =====
+
+    def _on_settings_clicked(self, button: Gtk.Button) -> None:
+        """Open settings dialog."""
+        from .settings_dialog import SettingsDialog
+        dialog = SettingsDialog(self, self.config_manager)
+        dialog.present()
+
+    def _on_private_mode_toggled(self, button: Gtk.ToggleButton) -> None:
+        """Toggle private mode."""
+        self.config_manager.update(private_mode=button.get_active())
+
+    def _on_config_changed(self, config) -> None:
+        """Handle config changes."""
+        # Update private mode button state
+        self.private_mode_btn.set_active(config.private_mode)
+
+        # Update UI based on config (e.g., compact mode)
+        if config.private_mode:
+            self.private_mode_btn.add_css_class("warning")
+        else:
+            self.private_mode_btn.remove_css_class("warning")

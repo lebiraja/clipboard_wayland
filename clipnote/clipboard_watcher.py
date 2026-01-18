@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 import gi
 
@@ -19,13 +19,22 @@ from .image_utils import (
     texture_to_pixbuf,
 )
 
+if TYPE_CHECKING:
+    from .config import ConfigManager
+
 
 class ClipboardWatcher:
     """Watches the system clipboard for changes."""
 
-    def __init__(self, store: ClipStore, cache_dir: Path):
+    def __init__(
+        self,
+        store: ClipStore,
+        cache_dir: Path,
+        config_manager: Optional["ConfigManager"] = None
+    ):
         self.store = store
         self.cache_dir = cache_dir
+        self.config_manager = config_manager
         self.clipboard: Optional[Gdk.Clipboard] = None
         self._last_content_hash: Optional[str] = None
         self._handler_id: Optional[int] = None

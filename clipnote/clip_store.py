@@ -91,3 +91,11 @@ class ClipStore:
 
     def __len__(self) -> int:
         return len(self._items)
+
+    def set_max_items(self, max_items: int) -> None:
+        """Update the maximum items limit."""
+        self._max_items = max_items
+        # Trim excess items if needed
+        self._db.trim_clips(max_items)
+        self._reload_items()
+        self._notify_listeners()

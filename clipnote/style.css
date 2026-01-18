@@ -158,6 +158,17 @@ window.clipnote-window {
     background-color: alpha(@window_fg_color, 0.1);
 }
 
+/* Private mode indicator */
+.private-mode-active,
+button.warning:checked {
+    background-color: alpha(@warning_color, 0.3);
+    color: @warning_color;
+}
+
+button.warning:checked:hover {
+    background-color: alpha(@warning_color, 0.4);
+}
+
 /* Note dialog styling */
 .note-dialog-content {
     min-width: 400px;
