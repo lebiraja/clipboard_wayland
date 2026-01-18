@@ -1,0 +1,218 @@
+/* ClipNote Custom Styles */
+
+/* Window styling */
+window.clipnote-window {
+    background-color: @window_bg_color;
+}
+
+/* Tab bar styling */
+.tab-bar {
+    background-color: alpha(@card_bg_color, 0.5);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.tab-bar button {
+    min-width: 100px;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.tab-bar button:checked {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
+
+.tab-bar button:not(:checked) {
+    background-color: transparent;
+    color: @window_fg_color;
+}
+
+.tab-bar button:hover:not(:checked) {
+    background-color: alpha(@window_fg_color, 0.1);
+}
+
+/* Clip item row styling */
+.clip-row {
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background-color 200ms ease;
+}
+
+.clip-row:hover {
+    background-color: alpha(@accent_color, 0.1);
+}
+
+.clip-row:selected {
+    background-color: alpha(@accent_color, 0.2);
+}
+
+/* Pin indicator styling */
+.pin-indicator {
+    color: @accent_color;
+    opacity: 0.9;
+}
+
+/* Content type icon */
+.type-icon {
+    opacity: 0.7;
+    min-width: 32px;
+}
+
+/* Preview text */
+.preview-text {
+    font-size: 14px;
+}
+
+/* Timestamp styling */
+.timestamp {
+    font-size: 12px;
+    opacity: 0.6;
+    min-width: 50px;
+}
+
+/* Action buttons container */
+.action-buttons {
+    opacity: 0.3;
+    transition: opacity 200ms ease;
+}
+
+.clip-row:hover .action-buttons,
+.clip-row:selected .action-buttons {
+    opacity: 1;
+}
+
+.action-buttons button {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 4px;
+}
+
+.action-buttons button:hover {
+    background-color: alpha(@window_fg_color, 0.1);
+}
+
+.action-buttons button.destructive:hover {
+    background-color: alpha(@error_color, 0.2);
+    color: @error_color;
+}
+
+/* Note row styling */
+.note-row {
+    padding: 10px 12px;
+    border-radius: 8px;
+}
+
+.note-row:hover {
+    background-color: alpha(@accent_color, 0.1);
+}
+
+.note-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.note-body-preview {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+/* Empty state styling */
+.empty-state {
+    opacity: 0.5;
+}
+
+.empty-state-icon {
+    opacity: 0.4;
+    margin-bottom: 16px;
+}
+
+.empty-state-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.empty-state-subtitle {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Search entry */
+.search-entry {
+    min-height: 36px;
+    border-radius: 18px;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+/* Header buttons */
+.header-button {
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 18px;
+}
+
+.header-button:hover {
+    background-color: alpha(@window_fg_color, 0.1);
+}
+
+/* Note dialog styling */
+.note-dialog-content {
+    min-width: 400px;
+}
+
+.note-title-entry {
+    font-size: 16px;
+    font-weight: 500;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.note-body-view {
+    font-size: 14px;
+    border-radius: 8px;
+}
+
+/* List box styling */
+.clip-list {
+    background-color: transparent;
+}
+
+.clip-list row {
+    background-color: transparent;
+    padding: 2px 8px;
+}
+
+.clip-list row:selected {
+    background-color: transparent;
+}
+
+/* Card-like appearance for items */
+.item-card {
+    background-color: @card_bg_color;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px alpha(black, 0.1);
+    margin: 4px 0;
+}
+
+.item-card:hover {
+    box-shadow: 0 2px 6px alpha(black, 0.15);
+}
+
+/* Files indicator */
+.files-badge {
+    background-color: alpha(@accent_color, 0.2);
+    color: @accent_color;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Image thumbnail */
+.image-thumbnail {
+    border-radius: 6px;
+    box-shadow: 0 1px 2px alpha(black, 0.1);
+}

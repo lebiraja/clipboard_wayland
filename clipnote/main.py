@@ -38,6 +38,31 @@ class ClipNoteApp(Adw.Application):
         self.watcher: ClipboardWatcher = None
         self.window: PopupWindow = None
 
+    def do_startup(self) -> None:
+        """Handle application startup - load CSS."""
+        Adw.Application.do_startup(self)
+        self._load_css()
+
+    def _load_css(self) -> None:
+        """Load custom CSS stylesheet."""
+        css_provider = Gtk.CssProvider()
+
+        # Get the path to the CSS file relative to this module
+        css_path = Path(__file__).parent / "style.css"
+
+        if css_path.exists():
+            css_provider.load_from_path(str(css_path))
+
+            # Add the CSS provider to the default display
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                css_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+            print(f"ClipNote: Loaded custom CSS from {css_path}")
+        else:
+            print(f"ClipNote: CSS file not found at {css_path}")
+
     def do_activate(self) -> None:
         """Handle application activation."""
         if not self.window:
