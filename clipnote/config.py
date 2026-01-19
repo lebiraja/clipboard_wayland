@@ -26,6 +26,10 @@ class Config:
     close_on_paste: bool = True
     clear_on_paste: bool = False  # Clear from history after pasting
 
+    # Hotkey settings
+    global_hotkey_enabled: bool = True
+    global_hotkey: str = "<Super>v"  # Default: Super+V
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary."""
         return asdict(self)
@@ -37,7 +41,8 @@ class Config:
         valid_fields = {
             "max_history_items", "auto_expire_days", "private_mode",
             "excluded_apps", "show_previews", "compact_mode",
-            "close_on_paste", "clear_on_paste"
+            "close_on_paste", "clear_on_paste",
+            "global_hotkey_enabled", "global_hotkey"
         }
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered)

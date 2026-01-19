@@ -7,18 +7,27 @@ gi.require_version("Adw", "1")
 
 from typing import Callable, Optional
 
-from gi.repository import Adw, Gio, Gtk
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk
 
 from .config import Config, ConfigManager
+from .hotkey_manager import format_keybinding, parse_keybinding, validate_keybinding
 
 
 class SettingsDialog(Adw.PreferencesWindow):
     """Settings/Preferences dialog for ClipNote."""
 
-    def __init__(self, parent: Gtk.Window, config_manager: ConfigManager):
+    def __init__(
+        self,
+        parent: Gtk.Window,
+        config_manager: ConfigManager,
+        hotkey_backend_name: Optional[str] = None,
+        hotkey_registered: bool = False
+    ):
         super().__init__()
         self.config_manager = config_manager
         self.config = config_manager.config
+        self.hotkey_backend_name = hotkey_backend_name or "Not Available"
+        self.hotkey_registered = hotkey_registered
 
         self.set_transient_for(parent)
         self.set_modal(True)
@@ -158,6 +167,58 @@ class SettingsDialog(Adw.PreferencesWindow):
         appearance_page.add(display_group)
 
         self.add(appearance_page)
+
+        # ===== SHORTCUTS PAGE =====
+        shortcuts_page = Adw.PreferencesPage()
+        shortcuts_page.set_title("Shortcuts")
+        shortcuts_page.set_icon_name("preferences-desktop-keyboard-shortcuts-symbolic")
+
+        # Global hotkey group
+        hotkey_group = Adw.PreferencesGroup()
+        hotkey_group.set_title("Global Hotkey")
+        hotkey_group.set_description("System-wide keyboard shortcut to open ClipNote")
+
+        # Enable hotkey toggle
+        self.hotkey_enabled_row = Adw.SwitchRow()
+        self.hotkey_enabled_row.set_title("Enable Global Hotkey")
+        self.hotkey_enabled_row.set_subtitle("Register a system-wide shortcut")
+        self.hotkey_enabled_row.set_active(self.config.global_hotkey_enabled)
+        self.hotkey_enabled_row.connect("notify::active", self._on_hotkey_enabled_changed)
+        hotkey_group.add(self.hotkey_enabled_row)
+
+        # Current hotkey display
+        self.hotkey_row = Adw.ActionRow()
+        self.hotkey_row.set_title("Shortcut")
+        self._update_hotkey_display()
+
+        change_btn = Gtk.Button(label="Change")
+        change_btn.set_valign(Gtk.Align.CENTER)
+        change_btn.connect("clicked", self._on_change_hotkey)
+        self.hotkey_row.add_suffix(change_btn)
+        hotkey_group.add(self.hotkey_row)
+
+        shortcuts_page.add(hotkey_group)
+
+        # Status group
+        status_group = Adw.PreferencesGroup()
+        status_group.set_title("Status")
+        status_group.set_description("Current hotkey backend and registration status")
+
+        # Backend info
+        backend_row = Adw.ActionRow()
+        backend_row.set_title("Backend")
+        backend_row.set_subtitle(self.hotkey_backend_name)
+        status_group.add(backend_row)
+
+        # Registration status
+        self.status_row = Adw.ActionRow()
+        self.status_row.set_title("Status")
+        self._update_status_display()
+        status_group.add(self.status_row)
+
+        shortcuts_page.add(status_group)
+
+        self.add(shortcuts_page)
 
         # ===== ABOUT PAGE =====
         about_page = Adw.PreferencesPage()
@@ -302,6 +363,102 @@ class SettingsDialog(Adw.PreferencesWindow):
                 # Emit signal or callback to clear data
                 print("Clearing all data...")
                 # This will be handled by the parent window
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
+    def _update_hotkey_display(self) -> None:
+        """Update the hotkey row subtitle with current binding."""
+        keybinding = self.config.global_hotkey
+        display_text = format_keybinding(keybinding)
+        self.hotkey_row.set_subtitle(display_text)
+
+    def _update_status_display(self) -> None:
+        """Update the status row subtitle."""
+        if not self.config.global_hotkey_enabled:
+            self.status_row.set_subtitle("Disabled")
+        elif self.hotkey_registered:
+            self.status_row.set_subtitle("Registered")
+        else:
+            self.status_row.set_subtitle("Not registered (backend unavailable)")
+
+    def _on_hotkey_enabled_changed(self, row: Adw.SwitchRow, param) -> None:
+        """Handle hotkey enabled toggle."""
+        self.config_manager.update(global_hotkey_enabled=row.get_active())
+        self._update_status_display()
+
+    def _on_change_hotkey(self, button: Gtk.Button) -> None:
+        """Show dialog to change hotkey."""
+        dialog = Adw.MessageDialog(
+            transient_for=self,
+            heading="Change Shortcut",
+            body="Press the new key combination, or type it manually.\nExamples: Super + V, Ctrl + Alt + V",
+        )
+
+        # Entry for manual input
+        entry = Gtk.Entry()
+        current_display = format_keybinding(self.config.global_hotkey)
+        entry.set_text(current_display)
+        entry.set_margin_top(12)
+        entry.set_margin_bottom(12)
+        entry.set_margin_start(12)
+        entry.set_margin_end(12)
+
+        # Key press handler
+        key_controller = Gtk.EventControllerKey()
+
+        def on_key_pressed(controller, keyval, keycode, state):
+            # Build key combination from modifiers
+            parts = []
+            if state & Gdk.ModifierType.SUPER_MASK:
+                parts.append("Super")
+            if state & Gdk.ModifierType.CONTROL_MASK:
+                parts.append("Ctrl")
+            if state & Gdk.ModifierType.ALT_MASK:
+                parts.append("Alt")
+            if state & Gdk.ModifierType.SHIFT_MASK:
+                parts.append("Shift")
+
+            # Get key name
+            key_name = Gdk.keyval_name(keyval)
+            if key_name and key_name not in ("Super_L", "Super_R", "Control_L", "Control_R",
+                                              "Alt_L", "Alt_R", "Shift_L", "Shift_R",
+                                              "Meta_L", "Meta_R", "ISO_Level3_Shift"):
+                if parts:  # Only if there's at least one modifier
+                    parts.append(key_name.upper())
+                    display = " + ".join(parts)
+                    entry.set_text(display)
+                    return True
+
+            return False
+
+        key_controller.connect("key-pressed", on_key_pressed)
+        entry.add_controller(key_controller)
+
+        dialog.set_extra_child(entry)
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("apply", "Apply")
+        dialog.set_response_appearance("apply", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("apply")
+
+        def on_response(dialog, response):
+            if response == "apply":
+                display_text = entry.get_text().strip()
+                gtk_binding = parse_keybinding(display_text)
+
+                if validate_keybinding(gtk_binding):
+                    self.config_manager.update(global_hotkey=gtk_binding)
+                    self._update_hotkey_display()
+                    # Note: actual re-registration happens via config listener in main.py
+                else:
+                    # Show error
+                    error_dialog = Adw.MessageDialog(
+                        transient_for=self,
+                        heading="Invalid Shortcut",
+                        body=f"'{display_text}' is not a valid shortcut.\nUse format: Modifier + Key (e.g., Super + V)",
+                    )
+                    error_dialog.add_response("ok", "OK")
+                    error_dialog.present()
 
         dialog.connect("response", on_response)
         dialog.present()

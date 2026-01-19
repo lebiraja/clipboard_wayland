@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=ClipNote
+GenericName=Clipboard Manager
+Comment=Clipboard History & Quick Notes for GNOME
+Icon=edit-paste
+Exec=python3 %h/projects/clipboard/run.py
+Terminal=false
+Categories=Utility;GTK;GNOME;
+Keywords=clipboard;paste;history;notes;copy;
+StartupNotify=true
+StartupWMClass=com.github.clipnote.poc
+X-GNOME-UsesNotifications=false

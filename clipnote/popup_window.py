@@ -368,6 +368,10 @@ class PopupWindow(Adw.ApplicationWindow):
         self._current_filter = ""
         self._current_tab = "clipboard"
 
+        # Hotkey info (set by main.py after creation)
+        self.hotkey_backend_name: Optional[str] = None
+        self.hotkey_registered: bool = False
+
         self._build_ui()
         self._setup_keyboard()
         self._populate_list()
@@ -851,7 +855,12 @@ class PopupWindow(Adw.ApplicationWindow):
     def _on_settings_clicked(self, button: Gtk.Button) -> None:
         """Open settings dialog."""
         from .settings_dialog import SettingsDialog
-        dialog = SettingsDialog(self, self.config_manager)
+        dialog = SettingsDialog(
+            self,
+            self.config_manager,
+            hotkey_backend_name=self.hotkey_backend_name,
+            hotkey_registered=self.hotkey_registered
+        )
         dialog.present()
 
     def _on_private_mode_toggled(self, button: Gtk.ToggleButton) -> None:

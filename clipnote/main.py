@@ -3,6 +3,7 @@
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import gi
 
@@ -16,6 +17,11 @@ from .clip_store import ClipStore
 from .clipboard_watcher import ClipboardWatcher
 from .config import ConfigManager
 from .database import Database
+from .hotkey_manager import (
+    HotkeyBackend,
+    HotkeyManager,
+    detect_display_server,
+)
 from .popup_window import PopupWindow
 
 
@@ -43,20 +49,27 @@ class ClipNoteApp(Adw.Application):
             max_items=self.config_manager.config.max_history_items,
             database=self.database
         )
-        self.watcher: ClipboardWatcher = None
-        self.window: PopupWindow = None
+        self.watcher: Optional[ClipboardWatcher] = None
+        self.window: Optional[PopupWindow] = None
+
+        # Hotkey management
+        self.display_server = detect_display_server()
+        self.hotkey_backend: Optional[HotkeyBackend] = None
+        self._hotkey_registered = False
+        self._last_hotkey: Optional[str] = None
 
         # Listen for config changes
         self.config_manager.add_listener(self._on_config_changed)
 
         # Setup auto-expire timer
-        self._expire_timer_id: int = None
+        self._expire_timer_id: Optional[int] = None
         self._setup_auto_expire()
 
     def do_startup(self) -> None:
-        """Handle application startup - load CSS."""
+        """Handle application startup - load CSS and setup hotkey."""
         Adw.Application.do_startup(self)
         self._load_css()
+        self._setup_hotkey()
 
     def _load_css(self) -> None:
         """Load custom CSS stylesheet."""
@@ -78,6 +91,63 @@ class ClipNoteApp(Adw.Application):
         else:
             print(f"ClipNote: CSS file not found at {css_path}")
 
+    def _setup_hotkey(self) -> None:
+        """Setup global hotkey registration."""
+        if not self.config_manager.config.global_hotkey_enabled:
+            print("ClipNote: Global hotkey disabled in config")
+            return
+
+        # Get command to launch app
+        run_script = Path(__file__).parent.parent / "run.py"
+        app_command = f"python3 {run_script}" if run_script.exists() else None
+
+        # Create hotkey backend
+        self.hotkey_backend = HotkeyManager.create_backend(
+            display_server=self.display_server,
+            app_command=app_command
+        )
+
+        print(f"ClipNote: Display server: {self.display_server}")
+        print(f"ClipNote: Hotkey backend: {self.hotkey_backend.name}")
+
+        # Register hotkey
+        keybinding = self.config_manager.config.global_hotkey
+        self._register_hotkey(keybinding)
+
+    def _register_hotkey(self, keybinding: str) -> bool:
+        """Register global hotkey.
+
+        Args:
+            keybinding: Key combination (e.g., "<Super>v")
+
+        Returns:
+            True if registration was successful
+        """
+        if not self.hotkey_backend:
+            return False
+
+        # Callback to show window
+        def on_hotkey_pressed():
+            GLib.idle_add(self.activate)
+
+        success = self.hotkey_backend.register_hotkey(keybinding, on_hotkey_pressed)
+
+        if success:
+            self._hotkey_registered = True
+            self._last_hotkey = keybinding
+            print(f"ClipNote: Registered hotkey: {keybinding}")
+        else:
+            print(f"ClipNote: Failed to register hotkey: {keybinding}")
+
+        return success
+
+    def _unregister_hotkey(self) -> None:
+        """Unregister current hotkey."""
+        if self.hotkey_backend and self._last_hotkey and self._hotkey_registered:
+            self.hotkey_backend.unregister_hotkey(self._last_hotkey)
+            self._hotkey_registered = False
+            print(f"ClipNote: Unregistered hotkey: {self._last_hotkey}")
+
     def do_activate(self) -> None:
         """Handle application activation."""
         if not self.window:
@@ -88,6 +158,11 @@ class ClipNoteApp(Adw.Application):
                 self.database,
                 self.config_manager
             )
+
+            # Pass hotkey info to window
+            if self.hotkey_backend:
+                self.window.hotkey_backend_name = self.hotkey_backend.name
+                self.window.hotkey_registered = self._hotkey_registered
 
             # Start clipboard monitoring (if not in private mode)
             if not self.config_manager.config.private_mode:
@@ -129,6 +204,22 @@ class ClipNoteApp(Adw.Application):
         # Update auto-expire
         self._setup_auto_expire()
 
+        # Handle hotkey changes
+        if self.hotkey_backend:
+            new_hotkey = config.global_hotkey
+            hotkey_enabled = config.global_hotkey_enabled
+
+            # Unregister if disabled or hotkey changed
+            if self._hotkey_registered:
+                if not hotkey_enabled or new_hotkey != self._last_hotkey:
+                    self._unregister_hotkey()
+
+            # Register new hotkey if enabled
+            if hotkey_enabled and new_hotkey != self._last_hotkey:
+                self._register_hotkey(new_hotkey)
+            elif hotkey_enabled and not self._hotkey_registered:
+                self._register_hotkey(new_hotkey)
+
     def _setup_auto_expire(self) -> None:
         """Setup auto-expire timer."""
         # Cancel existing timer
@@ -164,6 +255,10 @@ class ClipNoteApp(Adw.Application):
 
         if self.watcher:
             self.watcher.stop_watching()
+
+        # Cleanup hotkey backend
+        if self.hotkey_backend:
+            self.hotkey_backend.cleanup()
 
         Adw.Application.do_shutdown(self)
 
