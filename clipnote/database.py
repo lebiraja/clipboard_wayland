@@ -12,6 +12,9 @@ from .clip_item import ClipItem, ClipType
 class Database:
     """SQLite database manager for ClipNote."""
 
+    # Current database schema version
+    DB_VERSION = 2
+
     def __init__(self, db_path: Optional[Path] = None):
         if db_path is None:
             db_path = Path.home() / ".local" / "share" / "clipnote" / "clipnote.db"
@@ -20,6 +23,7 @@ class Database:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         self._init_db()
+        self._migrate_db()
 
     @contextmanager
     def _get_connection(self):
@@ -62,7 +66,8 @@ class Database:
                     timestamp REAL NOT NULL,
                     title TEXT NOT NULL,
                     body TEXT NOT NULL,
-                    pinned INTEGER DEFAULT 0
+                    pinned INTEGER DEFAULT 0,
+                    color TEXT DEFAULT 'blue'
                 )
             """)
 
@@ -75,6 +80,32 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_clips_pinned
                 ON clips(pinned DESC, timestamp DESC)
             """)
+
+            # DB version table for migrations
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS db_version (
+                    version INTEGER PRIMARY KEY
+                )
+            """)
+
+    def _migrate_db(self) -> None:
+        """Run database migrations if needed."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Get current version
+            cursor.execute("SELECT version FROM db_version ORDER BY version DESC LIMIT 1")
+            row = cursor.fetchone()
+            current_version = row['version'] if row else 1
+
+            if current_version < 2:
+                # Migration 2: Add color column to notes table
+                try:
+                    cursor.execute("ALTER TABLE notes ADD COLUMN color TEXT DEFAULT 'blue'")
+                except sqlite3.OperationalError:
+                    # Column already exists
+                    pass
+                cursor.execute("INSERT OR REPLACE INTO db_version (version) VALUES (2)")
 
     # ============ CLIPS METHODS ============
 
@@ -227,14 +258,14 @@ class Database:
 
     # ============ NOTES METHODS ============
 
-    def add_note(self, note_id: str, title: str, body: str, timestamp: float) -> None:
+    def add_note(self, note_id: str, title: str, body: str, timestamp: float, color: str = 'blue') -> None:
         """Add a note to the database."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT OR REPLACE INTO notes (id, timestamp, title, body, pinned)
-                VALUES (?, ?, ?, ?, 0)
-            """, (note_id, timestamp, title, body))
+                INSERT OR REPLACE INTO notes (id, timestamp, title, body, pinned, color)
+                VALUES (?, ?, ?, ?, 0, ?)
+            """, (note_id, timestamp, title, body, color))
 
     def get_all_notes(self) -> List[dict]:
         """Get all notes."""
@@ -254,13 +285,29 @@ class Database:
             row = cursor.fetchone()
             return dict(row) if row else None
 
-    def update_note(self, note_id: str, title: str, body: str) -> bool:
+    def update_note(self, note_id: str, title: str, body: str, color: Optional[str] = None) -> bool:
         """Update a note."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            if color is not None:
+                cursor.execute(
+                    "UPDATE notes SET title = ?, body = ?, color = ? WHERE id = ?",
+                    (title, body, color, note_id)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE notes SET title = ?, body = ? WHERE id = ?",
+                    (title, body, note_id)
+                )
+            return cursor.rowcount > 0
+
+    def update_note_color(self, note_id: str, color: str) -> bool:
+        """Update a note's color."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
             cursor.execute(
-                "UPDATE notes SET title = ?, body = ? WHERE id = ?",
-                (title, body, note_id)
+                "UPDATE notes SET color = ? WHERE id = ?",
+                (color, note_id)
             )
             return cursor.rowcount > 0
 

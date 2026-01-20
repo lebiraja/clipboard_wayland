@@ -227,3 +227,99 @@ button.warning:checked:hover {
     border-radius: 6px;
     box-shadow: 0 1px 2px alpha(black, 0.1);
 }
+
+/* ============ NOTE COLOR BARS ============ */
+.note-color-bar {
+    min-width: 4px;
+    border-radius: 4px 0 0 4px;
+}
+
+.note-color-bar-blue { background-color: #3584e4; }
+.note-color-bar-green { background-color: #33d17a; }
+.note-color-bar-yellow { background-color: #f6d32d; }
+.note-color-bar-orange { background-color: #ff7800; }
+.note-color-bar-red { background-color: #e01b24; }
+.note-color-bar-purple { background-color: #9141ac; }
+
+/* ============ NOTE EXPANDED EDITOR ============ */
+.note-editor-container {
+    padding: 12px;
+    padding-left: 16px;
+}
+
+.note-editor-title {
+    font-size: 18px;
+    font-weight: 600;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.note-editor-body {
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 8px;
+    min-height: 180px;
+}
+
+.note-editor-body text {
+    background-color: transparent;
+}
+
+.note-editor-actions {
+    padding-top: 12px;
+}
+
+/* ============ LARGER BODY PREVIEW ============ */
+.note-body-preview-large {
+    font-size: 13px;
+    opacity: 0.75;
+    line-height: 1.4;
+}
+
+/* ============ COLOR PICKER ============ */
+.color-picker-popover contents {
+    padding: 8px;
+}
+
+.color-picker-button {
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 14px;
+    border: 2px solid transparent;
+    padding: 0;
+    margin: 2px;
+}
+
+.color-picker-button:hover {
+    border-color: alpha(@window_fg_color, 0.3);
+}
+
+.color-picker-button.selected {
+    border-color: @window_fg_color;
+    border-width: 3px;
+}
+
+.color-btn-blue { background-color: #3584e4; }
+.color-btn-green { background-color: #33d17a; }
+.color-btn-yellow { background-color: #f6d32d; }
+.color-btn-orange { background-color: #ff7800; }
+.color-btn-red { background-color: #e01b24; }
+.color-btn-purple { background-color: #9141ac; }
+
+/* Note row with color bar container */
+.note-row-container {
+    background-color: @card_bg_color;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px alpha(black, 0.1);
+    margin: 4px 0;
+    overflow: hidden;
+}
+
+.note-row-container:hover {
+    box-shadow: 0 2px 6px alpha(black, 0.15);
+}
+
+.note-row-expanded {
+    background-color: alpha(@accent_color, 0.05);
+}
