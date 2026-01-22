@@ -4,7 +4,7 @@ A modern, lightweight clipboard manager for Linux with support for text, images,
 
 ## Features
 
-### 📋 Clipboard History
+### 📋 Enhanced Clipboard History
 - **Automatic tracking** of clipboard content (text, images, and files)
 - **Persistent storage** using SQLite database
 - **Duplicate detection** with content hashing
