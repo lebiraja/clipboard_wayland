@@ -313,7 +313,6 @@ button.warning:checked:hover {
     border-radius: 12px;
     box-shadow: 0 1px 3px alpha(black, 0.1);
     margin: 4px 0;
-    overflow: hidden;
 }
 
 .note-row-container:hover {

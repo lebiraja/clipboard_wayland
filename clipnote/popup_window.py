@@ -17,6 +17,7 @@ from .clip_item import ClipItem, ClipType
 from .clip_store import ClipStore
 from .config import ConfigManager
 from .database import Database
+from .emoji_data import EMOJI_DATA
 from .image_utils import create_thumbnail, load_image_from_cache
 
 
@@ -610,6 +611,7 @@ class PopupWindow(Adw.ApplicationWindow):
         self._build_ui()
         self._setup_keyboard()
         self._populate_list()
+        self._populate_emoji_list()
 
         # Listen for store changes
         self.store.add_listener(self._on_store_changed)
@@ -709,6 +711,16 @@ class PopupWindow(Adw.ApplicationWindow):
         self.notes_tab_btn.connect("toggled", self._on_notes_tab_toggled)
         tab_box.append(self.notes_tab_btn)
 
+        self.emoji_tab_btn = Gtk.ToggleButton()
+        emoji_tab_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        emoji_tab_icon = Gtk.Image.new_from_icon_name("face-smile-symbolic")
+        emoji_tab_icon.set_pixel_size(16)
+        emoji_tab_content.append(emoji_tab_icon)
+        emoji_tab_content.append(Gtk.Label(label="Emojis"))
+        self.emoji_tab_btn.set_child(emoji_tab_content)
+        self.emoji_tab_btn.connect("toggled", self._on_emoji_tab_toggled)
+        tab_box.append(self.emoji_tab_btn)
+
         tab_container.append(tab_box)
         main_box.append(tab_container)
 
@@ -788,6 +800,26 @@ class PopupWindow(Adw.ApplicationWindow):
         notes_box.append(self.notes_stack)
         self.content_stack.add_named(notes_box, "notes")
 
+        # ===== EMOJI TAB =====
+        emoji_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        emoji_scrolled = Gtk.ScrolledWindow()
+        emoji_scrolled.set_vexpand(True)
+
+        self.emoji_flowbox = Gtk.FlowBox()
+        self.emoji_flowbox.set_valign(Gtk.Align.START)
+        self.emoji_flowbox.set_max_children_per_line(10)
+        self.emoji_flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        self.emoji_flowbox.set_homogeneous(True)
+        self.emoji_flowbox.add_css_class("emoji-flowbox")
+        self.emoji_flowbox.set_margin_start(12)
+        self.emoji_flowbox.set_margin_end(12)
+        self.emoji_flowbox.set_margin_top(12)
+        self.emoji_flowbox.set_margin_bottom(12)
+
+        emoji_scrolled.set_child(self.emoji_flowbox)
+        emoji_box.append(emoji_scrolled)
+        self.content_stack.add_named(emoji_box, "emojis")
+
         main_box.append(self.content_stack)
         self.set_content(main_box)
 
@@ -825,6 +857,8 @@ class PopupWindow(Adw.ApplicationWindow):
         elif keyval == Gdk.KEY_Tab:
             if self._current_tab == "clipboard":
                 self.notes_tab_btn.set_active(True)
+            elif self._current_tab == "notes":
+                self.emoji_tab_btn.set_active(True)
             else:
                 self.clipboard_tab_btn.set_active(True)
             return True
@@ -842,8 +876,10 @@ class PopupWindow(Adw.ApplicationWindow):
         self._current_filter = entry.get_text()
         if self._current_tab == "clipboard":
             self._populate_list()
-        else:
+        elif self._current_tab == "notes":
             self._populate_notes_list()
+        elif self._current_tab == "emojis":
+            self._filter_emojis()
 
     def _on_row_activated(self, listbox: Gtk.ListBox, row) -> None:
         pass
@@ -925,6 +961,7 @@ class PopupWindow(Adw.ApplicationWindow):
         if button.get_active():
             self._current_tab = "clipboard"
             self.notes_tab_btn.set_active(False)
+            self.emoji_tab_btn.set_active(False)
             self.content_stack.set_visible_child_name("clipboard")
             self.search_entry.set_placeholder_text("Search clipboard...")
             self.clear_btn.set_visible(True)
@@ -935,11 +972,62 @@ class PopupWindow(Adw.ApplicationWindow):
         if button.get_active():
             self._current_tab = "notes"
             self.clipboard_tab_btn.set_active(False)
+            self.emoji_tab_btn.set_active(False)
             self.content_stack.set_visible_child_name("notes")
             self.search_entry.set_placeholder_text("Search notes...")
             self.clear_btn.set_visible(False)
             self.add_note_btn.set_visible(True)
             self._populate_notes_list()
+
+    def _on_emoji_tab_toggled(self, button: Gtk.ToggleButton) -> None:
+        if button.get_active():
+            self._current_tab = "emojis"
+            self.clipboard_tab_btn.set_active(False)
+            self.notes_tab_btn.set_active(False)
+            self.content_stack.set_visible_child_name("emojis")
+            self.search_entry.set_placeholder_text("Search emojis...")
+            self.clear_btn.set_visible(False)
+            self.add_note_btn.set_visible(False)
+            self._filter_emojis()
+
+    # ===== EMOJI METHODS =====
+
+    def _populate_emoji_list(self) -> None:
+        """Populate the emoji list."""
+        for emoji in EMOJI_DATA:
+            btn = Gtk.Button(label=emoji["char"])
+            btn.add_css_class("emoji-button")
+            btn.add_css_class("flat")
+            # Store metadata for filtering
+            btn.emoji_name = emoji["name"].lower()
+            btn.emoji_keywords = [k.lower() for k in emoji["keywords"]]
+            btn.emoji_char = emoji["char"]
+
+            # Use partial to capture the emoji char in lambda/callback
+            btn.connect("clicked", self._on_emoji_clicked, emoji["char"])
+            self.emoji_flowbox.append(btn)
+
+    def _filter_emojis(self) -> None:
+        """Filter emojis based on search query."""
+        query = self._current_filter.lower()
+        child = self.emoji_flowbox.get_first_child()
+        while child:
+            # child is a Gtk.FlowBoxChild, child.get_child() is our Button
+            btn = child.get_child()
+            if isinstance(btn, Gtk.Button):
+                visible = not query or (
+                    query in btn.emoji_name or
+                    query in btn.emoji_char or
+                    any(query in k for k in btn.emoji_keywords)
+                )
+                child.set_visible(visible)
+            child = child.get_next_sibling()
+
+    def _on_emoji_clicked(self, button: Gtk.Button, emoji_char: str) -> None:
+        """Handle emoji click."""
+        content = Gdk.ContentProvider.new_for_value(emoji_char)
+        self.clipboard.set_content(content)
+        self.close()
 
     # ===== NOTES METHODS =====
 
