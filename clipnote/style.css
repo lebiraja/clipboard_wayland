@@ -5,140 +5,6 @@ window.clipnote-window {
     background-color: @window_bg_color;
 }
 
-/* Tab bar styling */
-.tab-bar {
-    background-color: alpha(@card_bg_color, 0.5);
-    border-radius: 8px;
-    padding: 4px;
-}
-
-.tab-bar button {
-    min-width: 100px;
-    padding: 8px 20px;
-    border-radius: 6px;
-    font-weight: 500;
-}
-
-.tab-bar button:checked {
-    background-color: @accent_bg_color;
-    color: @accent_fg_color;
-}
-
-.tab-bar button:not(:checked) {
-    background-color: transparent;
-    color: @window_fg_color;
-}
-
-.tab-bar button:hover:not(:checked) {
-    background-color: alpha(@window_fg_color, 0.1);
-}
-
-/* Clip item row styling */
-.clip-row {
-    padding: 8px 12px;
-    border-radius: 8px;
-    transition: background-color 200ms ease;
-}
-
-.clip-row:hover {
-    background-color: alpha(@accent_color, 0.1);
-}
-
-.clip-row:selected {
-    background-color: alpha(@accent_color, 0.2);
-}
-
-/* Pin indicator styling */
-.pin-indicator {
-    color: @accent_color;
-    opacity: 0.9;
-}
-
-/* Content type icon */
-.type-icon {
-    opacity: 0.7;
-    min-width: 32px;
-}
-
-/* Preview text */
-.preview-text {
-    font-size: 14px;
-}
-
-/* Timestamp styling */
-.timestamp {
-    font-size: 12px;
-    opacity: 0.6;
-    min-width: 50px;
-}
-
-/* Action buttons container */
-.action-buttons {
-    opacity: 0.3;
-    transition: opacity 200ms ease;
-}
-
-.clip-row:hover .action-buttons,
-.clip-row:selected .action-buttons {
-    opacity: 1;
-}
-
-.action-buttons button {
-    min-width: 28px;
-    min-height: 28px;
-    padding: 4px;
-}
-
-.action-buttons button:hover {
-    background-color: alpha(@window_fg_color, 0.1);
-}
-
-.action-buttons button.destructive:hover {
-    background-color: alpha(@error_color, 0.2);
-    color: @error_color;
-}
-
-/* Note row styling */
-.note-row {
-    padding: 10px 12px;
-    border-radius: 8px;
-}
-
-.note-row:hover {
-    background-color: alpha(@accent_color, 0.1);
-}
-
-.note-title {
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.note-body-preview {
-    font-size: 12px;
-    opacity: 0.7;
-}
-
-/* Empty state styling */
-.empty-state {
-    opacity: 0.5;
-}
-
-.empty-state-icon {
-    opacity: 0.4;
-    margin-bottom: 16px;
-}
-
-.empty-state-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.empty-state-subtitle {
-    font-size: 14px;
-    opacity: 0.8;
-}
-
 /* Search entry */
 .search-entry {
     min-height: 36px;
@@ -186,32 +52,6 @@ button.warning:checked:hover {
     border-radius: 8px;
 }
 
-/* List box styling */
-.clip-list {
-    background-color: transparent;
-}
-
-.clip-list row {
-    background-color: transparent;
-    padding: 2px 8px;
-}
-
-.clip-list row:selected {
-    background-color: transparent;
-}
-
-/* Card-like appearance for items */
-.item-card {
-    background-color: @card_bg_color;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px alpha(black, 0.1);
-    margin: 4px 0;
-}
-
-.item-card:hover {
-    box-shadow: 0 2px 6px alpha(black, 0.15);
-}
-
 /* Files indicator */
 .files-badge {
     background-color: alpha(@accent_color, 0.2);
@@ -228,54 +68,13 @@ button.warning:checked:hover {
     box-shadow: 0 1px 2px alpha(black, 0.1);
 }
 
-/* ============ NOTE COLOR BARS ============ */
-.note-color-bar {
-    min-width: 4px;
-    border-radius: 4px 0 0 4px;
-}
-
-.note-color-bar-blue { background-color: #3584e4; }
-.note-color-bar-green { background-color: #33d17a; }
-.note-color-bar-yellow { background-color: #f6d32d; }
-.note-color-bar-orange { background-color: #ff7800; }
-.note-color-bar-red { background-color: #e01b24; }
-.note-color-bar-purple { background-color: #9141ac; }
-
-/* ============ NOTE EXPANDED EDITOR ============ */
-.note-editor-container {
-    padding: 12px;
-    padding-left: 16px;
-}
-
-.note-editor-title {
-    font-size: 18px;
-    font-weight: 600;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-}
-
-.note-editor-body {
-    font-size: 14px;
-    padding: 12px;
-    border-radius: 8px;
-    min-height: 180px;
-}
-
-.note-editor-body text {
-    background-color: transparent;
-}
-
-.note-editor-actions {
-    padding-top: 12px;
-}
-
-/* ============ LARGER BODY PREVIEW ============ */
-.note-body-preview-large {
-    font-size: 13px;
-    opacity: 0.75;
-    line-height: 1.4;
-}
+/* Note Icons in Row */
+.note-icon-blue { color: #3584e4; }
+.note-icon-green { color: #33d17a; }
+.note-icon-yellow { color: #f6d32d; }
+.note-icon-orange { color: #ff7800; }
+.note-icon-red { color: #e01b24; }
+.note-icon-purple { color: #9141ac; }
 
 /* ============ COLOR PICKER ============ */
 .color-picker-popover contents {
@@ -307,18 +106,27 @@ button.warning:checked:hover {
 .color-btn-red { background-color: #e01b24; }
 .color-btn-purple { background-color: #9141ac; }
 
-/* Note row with color bar container */
-.note-row-container {
-    background-color: @card_bg_color;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px alpha(black, 0.1);
-    margin: 4px 0;
+/* Emoji Grid */
+.emoji-flowbox {
+    background: transparent;
 }
 
-.note-row-container:hover {
-    box-shadow: 0 2px 6px alpha(black, 0.15);
+.emoji-button {
+    font-size: 24px;
+    padding: 8px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 8px;
+    background: transparent;
+    color: @view_fg_color;
+    border: none;
+    box-shadow: none;
 }
 
-.note-row-expanded {
-    background-color: alpha(@accent_color, 0.05);
+.emoji-button:hover {
+    background-color: alpha(@window_fg_color, 0.1);
+}
+
+.emoji-button:active {
+    background-color: alpha(@window_fg_color, 0.2);
 }

@@ -21,7 +21,7 @@ from .emoji_data import EMOJI_DATA
 from .image_utils import create_thumbnail, load_image_from_cache
 
 
-class ClipItemRow(Gtk.ListBoxRow):
+class ClipItemRow(Adw.ActionRow):
     """A row widget representing a single clipboard item."""
 
     def __init__(
@@ -35,78 +35,17 @@ class ClipItemRow(Gtk.ListBoxRow):
         self._on_delete = on_delete
         self._on_pin = on_pin
 
-        # Card container with styling
-        card = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        card.add_css_class("item-card")
-        card.set_margin_start(4)
-        card.set_margin_end(4)
-        card.set_margin_top(2)
-        card.set_margin_bottom(2)
+        self.set_title(clip_item.get_display_text())
+        self.set_subtitle(clip_item.get_relative_time())
+        self.set_activatable(True)
 
-        # Inner content box
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        box.set_margin_start(12)
-        box.set_margin_end(8)
-        box.set_margin_top(10)
-        box.set_margin_bottom(10)
-        box.set_hexpand(True)
-
-        # Pin indicator (shown if pinned)
-        if clip_item.pinned:
-            pin_icon = Gtk.Image.new_from_icon_name("view-pin-symbolic")
-            pin_icon.set_pixel_size(14)
-            pin_icon.add_css_class("pin-indicator")
-            pin_icon.add_css_class("accent")
-            box.append(pin_icon)
-
-        # Icon based on type
-        icon_box = Gtk.Box()
-        icon_box.set_size_request(40, 40)
-        icon_box.set_valign(Gtk.Align.CENTER)
-        icon_box.set_halign(Gtk.Align.CENTER)
-
+        # Icon/Thumbnail
         if clip_item.item_type == ClipType.TEXT:
             icon = Gtk.Image.new_from_icon_name("text-x-generic-symbolic")
-            icon.set_pixel_size(22)
-            icon.add_css_class("type-icon")
-            icon_box.append(icon)
-            box.append(icon_box)
-
-            # Text content box
-            content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-            content_box.set_hexpand(True)
-            content_box.set_valign(Gtk.Align.CENTER)
-
-            label = Gtk.Label(label=clip_item.get_display_text())
-            label.set_xalign(0)
-            label.set_ellipsize(Pango.EllipsizeMode.END)
-            label.set_max_width_chars(50)
-            label.add_css_class("preview-text")
-            content_box.append(label)
-
-            box.append(content_box)
-
+            self.add_prefix(icon)
         elif clip_item.item_type == ClipType.FILES:
             icon = Gtk.Image.new_from_icon_name("folder-symbolic")
-            icon.set_pixel_size(22)
-            icon.add_css_class("type-icon")
-            icon_box.append(icon)
-            box.append(icon_box)
-
-            # File content box
-            content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-            content_box.set_hexpand(True)
-            content_box.set_valign(Gtk.Align.CENTER)
-
-            label = Gtk.Label(label=clip_item.get_display_text())
-            label.set_xalign(0)
-            label.set_ellipsize(Pango.EllipsizeMode.END)
-            label.set_max_width_chars(50)
-            label.add_css_class("preview-text")
-            content_box.append(label)
-
-            box.append(content_box)
-
+            self.add_prefix(icon)
         else:  # IMAGE
             if clip_item.image_path:
                 pixbuf = load_image_from_cache(clip_item.image_path)
@@ -115,48 +54,14 @@ class ClipItemRow(Gtk.ListBoxRow):
                     texture = Gdk.Texture.new_for_pixbuf(thumbnail)
                     picture = Gtk.Picture.new_for_paintable(texture)
                     picture.set_size_request(40, 40)
-                    picture.add_css_class("image-thumbnail")
                     picture.set_content_fit(Gtk.ContentFit.COVER)
-                    box.append(picture)
+                    self.add_prefix(picture)
                 else:
                     icon = Gtk.Image.new_from_icon_name("image-x-generic-symbolic")
-                    icon.set_pixel_size(22)
-                    icon.add_css_class("type-icon")
-                    icon_box.append(icon)
-                    box.append(icon_box)
+                    self.add_prefix(icon)
             else:
                 icon = Gtk.Image.new_from_icon_name("image-x-generic-symbolic")
-                icon.set_pixel_size(22)
-                icon.add_css_class("type-icon")
-                icon_box.append(icon)
-                box.append(icon_box)
-
-            # Image description
-            content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-            content_box.set_hexpand(True)
-            content_box.set_valign(Gtk.Align.CENTER)
-
-            label = Gtk.Label(label=clip_item.get_display_text())
-            label.set_xalign(0)
-            label.add_css_class("preview-text")
-            content_box.append(label)
-
-            box.append(content_box)
-
-        # Right side: timestamp and action buttons
-        right_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        right_box.set_valign(Gtk.Align.CENTER)
-
-        # Relative timestamp
-        time_label = Gtk.Label(label=clip_item.get_relative_time())
-        time_label.add_css_class("timestamp")
-        time_label.add_css_class("dim-label")
-        time_label.set_margin_end(8)
-        right_box.append(time_label)
-
-        # Action buttons container
-        action_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        action_box.add_css_class("action-buttons")
+                self.add_prefix(icon)
 
         # Pin button
         pin_btn = Gtk.Button()
@@ -165,23 +70,16 @@ class ClipItemRow(Gtk.ListBoxRow):
         pin_btn.add_css_class("circular")
         pin_btn.set_tooltip_text("Unpin" if clip_item.pinned else "Pin")
         pin_btn.connect("clicked", self._on_pin_clicked)
-        action_box.append(pin_btn)
+        self.add_suffix(pin_btn)
 
         # Delete button
         delete_btn = Gtk.Button()
         delete_btn.set_icon_name("user-trash-symbolic")
         delete_btn.add_css_class("flat")
         delete_btn.add_css_class("circular")
-        delete_btn.add_css_class("destructive")
         delete_btn.set_tooltip_text("Delete")
         delete_btn.connect("clicked", self._on_delete_clicked)
-        action_box.append(delete_btn)
-
-        right_box.append(action_box)
-        box.append(right_box)
-
-        card.append(box)
-        self.set_child(card)
+        self.add_suffix(delete_btn)
 
     def _on_delete_clicked(self, button: Gtk.Button) -> None:
         """Handle delete button click."""
@@ -205,146 +103,38 @@ NOTE_COLORS = {
 }
 
 
-class NoteRow(Gtk.ListBoxRow):
-    """A row widget representing a single note with inline editing."""
+class NoteRow(Adw.ActionRow):
+    """A row widget representing a single note."""
 
     def __init__(
         self,
         note: dict,
         on_delete: Optional[Callable[[str], None]] = None,
-        on_save: Optional[Callable[[str, str, str], None]] = None,
+        on_edit: Optional[Callable[[dict], None]] = None,
         on_pin: Optional[Callable[[str], None]] = None,
-        on_color_change: Optional[Callable[[str, str], None]] = None,
-        on_expand: Optional[Callable[['NoteRow'], None]] = None
     ):
         super().__init__()
         self.note = note
         self._on_delete = on_delete
-        self._on_save = on_save
+        self._on_edit = on_edit
         self._on_pin = on_pin
-        self._on_color_change = on_color_change
-        self._on_expand = on_expand
-        self.is_expanded = False
 
-        # Main container with color bar
-        self.container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        self.container.add_css_class("note-row-container")
-        self.container.set_margin_start(4)
-        self.container.set_margin_end(4)
-        self.container.set_margin_top(2)
-        self.container.set_margin_bottom(2)
+        self.set_title(note.get("title", "Untitled"))
+        self.set_activatable(True)
 
-        # Color bar on left
-        color = note.get("color", "blue") or "blue"
-        self.color_bar = Gtk.Box()
-        self.color_bar.set_size_request(4, -1)
-        self.color_bar.add_css_class("note-color-bar")
-        self.color_bar.add_css_class(f"note-color-bar-{color}")
-        self.container.append(self.color_bar)
-
-        # Stack for switching between collapsed and expanded views
-        self.view_stack = Gtk.Stack()
-        self.view_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
-        self.view_stack.set_transition_duration(150)
-        self.view_stack.set_hexpand(True)
-
-        # Build both views
-        self.collapsed_view = self._build_collapsed_view()
-        self.expanded_view = self._build_expanded_view()
-
-        self.view_stack.add_named(self.collapsed_view, "collapsed")
-        self.view_stack.add_named(self.expanded_view, "expanded")
-        self.view_stack.set_visible_child_name("collapsed")
-
-        self.container.append(self.view_stack)
-        self.set_child(self.container)
-
-    def _build_collapsed_view(self) -> Gtk.Box:
-        """Build the collapsed view with larger preview."""
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        box.set_margin_start(12)
-        box.set_margin_end(8)
-        box.set_margin_top(10)
-        box.set_margin_bottom(10)
-        box.set_hexpand(True)
-
-        # Pin indicator
-        if self.note.get("pinned"):
-            pin_icon = Gtk.Image.new_from_icon_name("view-pin-symbolic")
-            pin_icon.set_pixel_size(14)
-            pin_icon.add_css_class("pin-indicator")
-            pin_icon.add_css_class("accent")
-            box.append(pin_icon)
-
-        # Note icon
-        icon_box = Gtk.Box()
-        icon_box.set_size_request(40, 40)
-        icon_box.set_valign(Gtk.Align.START)
-        icon_box.set_halign(Gtk.Align.CENTER)
-
-        icon = Gtk.Image.new_from_icon_name("notepad-symbolic")
-        icon.set_pixel_size(22)
-        icon.add_css_class("type-icon")
-        icon_box.append(icon)
-        box.append(icon_box)
-
-        # Content box (title + body preview)
-        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        content_box.set_hexpand(True)
-        content_box.set_valign(Gtk.Align.CENTER)
-
-        # Title
-        self.title_label = Gtk.Label(label=self.note.get("title", "Untitled"))
-        self.title_label.set_xalign(0)
-        self.title_label.set_ellipsize(Pango.EllipsizeMode.END)
-        self.title_label.set_max_width_chars(50)
-        self.title_label.add_css_class("note-title")
-        content_box.append(self.title_label)
-
-        # Body preview - now 200-250 chars with wrapping
-        body = self.note.get("body", "")
-        preview_length = 220
+        # Body preview
+        body = note.get("body", "")
+        preview_length = 100
         body_preview = body[:preview_length].replace("\n", " ")
         if len(body) > preview_length:
             body_preview += "..."
+        self.set_subtitle(body_preview)
 
-        if body_preview:
-            self.body_label = Gtk.Label(label=body_preview)
-            self.body_label.set_xalign(0)
-            self.body_label.set_wrap(True)
-            self.body_label.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
-            self.body_label.set_max_width_chars(70)
-            self.body_label.set_lines(5)
-            self.body_label.set_ellipsize(Pango.EllipsizeMode.END)
-            self.body_label.add_css_class("note-body-preview-large")
-            self.body_label.add_css_class("dim-label")
-            content_box.append(self.body_label)
-
-        box.append(content_box)
-
-        # Action buttons
-        action_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        action_box.add_css_class("action-buttons")
-        action_box.set_valign(Gtk.Align.START)
-        action_box.set_margin_top(4)
-
-        # Color picker button
-        color_btn = Gtk.MenuButton()
-        color_btn.set_icon_name("color-select-symbolic")
-        color_btn.add_css_class("flat")
-        color_btn.add_css_class("circular")
-        color_btn.set_tooltip_text("Change color")
-        color_btn.set_popover(self._build_color_popover())
-        action_box.append(color_btn)
-
-        # Pin button
-        pin_btn = Gtk.Button()
-        pin_btn.set_icon_name("pin-symbolic" if not self.note.get("pinned") else "unpin-symbolic")
-        pin_btn.add_css_class("flat")
-        pin_btn.add_css_class("circular")
-        pin_btn.set_tooltip_text("Unpin" if self.note.get("pinned") else "Pin")
-        pin_btn.connect("clicked", self._on_pin_clicked)
-        action_box.append(pin_btn)
+        # Color indicator (Icon)
+        color = note.get("color", "blue") or "blue"
+        icon = Gtk.Image.new_from_icon_name("notepad-symbolic")
+        icon.add_css_class(f"note-icon-{color}")
+        self.add_prefix(icon)
 
         # Edit button
         edit_btn = Gtk.Button()
@@ -353,236 +143,37 @@ class NoteRow(Gtk.ListBoxRow):
         edit_btn.add_css_class("circular")
         edit_btn.set_tooltip_text("Edit")
         edit_btn.connect("clicked", self._on_edit_clicked)
-        action_box.append(edit_btn)
+        self.add_suffix(edit_btn)
+
+        # Pin button
+        pin_btn = Gtk.Button()
+        pin_btn.set_icon_name("pin-symbolic" if not note.get("pinned") else "unpin-symbolic")
+        pin_btn.add_css_class("flat")
+        pin_btn.add_css_class("circular")
+        pin_btn.set_tooltip_text("Unpin" if note.get("pinned") else "Pin")
+        pin_btn.connect("clicked", self._on_pin_clicked)
+        self.add_suffix(pin_btn)
 
         # Delete button
         delete_btn = Gtk.Button()
         delete_btn.set_icon_name("user-trash-symbolic")
         delete_btn.add_css_class("flat")
         delete_btn.add_css_class("circular")
-        delete_btn.add_css_class("destructive")
         delete_btn.set_tooltip_text("Delete")
         delete_btn.connect("clicked", self._on_delete_clicked)
-        action_box.append(delete_btn)
-
-        box.append(action_box)
-        return box
-
-    def _build_expanded_view(self) -> Gtk.Box:
-        """Build the expanded inline editor view."""
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        box.add_css_class("note-editor-container")
-        box.set_margin_start(12)
-        box.set_margin_end(12)
-        box.set_margin_top(12)
-        box.set_margin_bottom(12)
-
-        # Title entry
-        self.title_entry = Gtk.Entry()
-        self.title_entry.set_placeholder_text("Enter title...")
-        self.title_entry.add_css_class("note-editor-title")
-        self.title_entry.set_text(self.note.get("title", ""))
-        box.append(self.title_entry)
-
-        # Body text view in scrolled window
-        body_frame = Gtk.Frame()
-        body_scrolled = Gtk.ScrolledWindow()
-        body_scrolled.set_min_content_height(180)
-        body_scrolled.set_vexpand(True)
-
-        self.body_textview = Gtk.TextView()
-        self.body_textview.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        self.body_textview.set_top_margin(12)
-        self.body_textview.set_bottom_margin(12)
-        self.body_textview.set_left_margin(12)
-        self.body_textview.set_right_margin(12)
-        self.body_textview.add_css_class("note-editor-body")
-        self.body_textview.get_buffer().set_text(self.note.get("body", ""))
-
-        body_scrolled.set_child(self.body_textview)
-        body_frame.set_child(body_scrolled)
-        box.append(body_frame)
-
-        # Action buttons (Cancel / Save)
-        action_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        action_box.add_css_class("note-editor-actions")
-        action_box.set_halign(Gtk.Align.END)
-
-        cancel_btn = Gtk.Button(label="Cancel")
-        cancel_btn.add_css_class("flat")
-        cancel_btn.connect("clicked", self._on_cancel_clicked)
-        action_box.append(cancel_btn)
-
-        save_btn = Gtk.Button(label="Save")
-        save_btn.add_css_class("suggested-action")
-        save_btn.connect("clicked", self._on_save_clicked)
-        action_box.append(save_btn)
-
-        box.append(action_box)
-
-        # Set up keyboard shortcuts
-        key_controller = Gtk.EventControllerKey()
-        key_controller.connect("key-pressed", self._on_key_pressed)
-        box.add_controller(key_controller)
-
-        return box
-
-    def _build_color_popover(self) -> Gtk.Popover:
-        """Build the color picker popover."""
-        popover = Gtk.Popover()
-        popover.add_css_class("color-picker-popover")
-
-        flow = Gtk.FlowBox()
-        flow.set_max_children_per_line(3)
-        flow.set_min_children_per_line(3)
-        flow.set_selection_mode(Gtk.SelectionMode.NONE)
-        flow.set_homogeneous(True)
-        flow.set_row_spacing(4)
-        flow.set_column_spacing(4)
-
-        current_color = self.note.get("color", "blue") or "blue"
-
-        for color_name in NOTE_COLORS.keys():
-            btn = Gtk.Button()
-            btn.set_size_request(28, 28)
-            btn.add_css_class("color-picker-button")
-            btn.add_css_class(f"color-btn-{color_name}")
-            if color_name == current_color:
-                btn.add_css_class("selected")
-            btn.set_tooltip_text(color_name.capitalize())
-            btn.connect("clicked", self._on_color_selected, color_name, popover)
-            flow.append(btn)
-
-        popover.set_child(flow)
-        return popover
-
-    def expand(self) -> None:
-        """Expand the note for inline editing."""
-        if self.is_expanded:
-            return
-
-        self.is_expanded = True
-        self.container.add_css_class("note-row-expanded")
-
-        # Populate editor with current values
-        self.title_entry.set_text(self.note.get("title", ""))
-        self.body_textview.get_buffer().set_text(self.note.get("body", ""))
-
-        self.view_stack.set_visible_child_name("expanded")
-
-        # Focus the title entry
-        GLib.idle_add(self.title_entry.grab_focus)
-
-        # Notify parent
-        if self._on_expand:
-            self._on_expand(self)
-
-    def collapse(self) -> None:
-        """Collapse the editor without saving."""
-        if not self.is_expanded:
-            return
-
-        self.is_expanded = False
-        self.container.remove_css_class("note-row-expanded")
-        self.view_stack.set_visible_child_name("collapsed")
-
-    def _on_key_pressed(self, controller, keyval, keycode, state) -> bool:
-        """Handle keyboard shortcuts in expanded mode."""
-        if keyval == Gdk.KEY_Escape:
-            self.collapse()
-            return True
-        elif keyval == Gdk.KEY_Return and state & Gdk.ModifierType.CONTROL_MASK:
-            self._save_and_collapse()
-            return True
-        return False
-
-    def _save_and_collapse(self) -> None:
-        """Save the note and collapse."""
-        title = self.title_entry.get_text().strip() or "Untitled"
-        buffer = self.body_textview.get_buffer()
-        start, end = buffer.get_bounds()
-        body = buffer.get_text(start, end, False)
-
-        # Update local note data
-        self.note["title"] = title
-        self.note["body"] = body
-
-        # Update collapsed view labels
-        self.title_label.set_text(title)
-        preview_length = 220
-        body_preview = body[:preview_length].replace("\n", " ")
-        if len(body) > preview_length:
-            body_preview += "..."
-        if hasattr(self, 'body_label'):
-            self.body_label.set_text(body_preview)
-
-        # Call save callback
-        if self._on_save:
-            self._on_save(self.note["id"], title, body)
-
-        self.collapse()
-
-    def _update_color_bar(self, color: str) -> None:
-        """Update the color bar to a new color."""
-        # Remove old color class
-        for c in NOTE_COLORS.keys():
-            self.color_bar.remove_css_class(f"note-color-bar-{c}")
-        # Add new color class
-        self.color_bar.add_css_class(f"note-color-bar-{color}")
-        self.note["color"] = color
-
-    def _on_color_selected(self, button: Gtk.Button, color: str, popover: Gtk.Popover) -> None:
-        """Handle color selection."""
-        self._update_color_bar(color)
-        popover.popdown()
-        if self._on_color_change:
-            self._on_color_change(self.note["id"], color)
+        self.add_suffix(delete_btn)
 
     def _on_delete_clicked(self, button: Gtk.Button) -> None:
         if self._on_delete:
             self._on_delete(self.note["id"])
 
-    def _on_edit_clicked(self, button: Gtk.Button) -> None:
-        self.expand()
-
     def _on_pin_clicked(self, button: Gtk.Button) -> None:
         if self._on_pin:
             self._on_pin(self.note["id"])
 
-    def _on_cancel_clicked(self, button: Gtk.Button) -> None:
-        self.collapse()
-
-    def _on_save_clicked(self, button: Gtk.Button) -> None:
-        self._save_and_collapse()
-
-
-class EmptyState(Gtk.Box):
-    """Empty state widget with icon and message."""
-
-    def __init__(self, icon_name: str, title: str, subtitle: str):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        self.set_valign(Gtk.Align.CENTER)
-        self.set_halign(Gtk.Align.CENTER)
-        self.set_margin_top(60)
-        self.set_margin_bottom(60)
-        self.add_css_class("empty-state")
-
-        # Icon
-        icon = Gtk.Image.new_from_icon_name(icon_name)
-        icon.set_pixel_size(64)
-        icon.add_css_class("empty-state-icon")
-        self.append(icon)
-
-        # Title
-        title_label = Gtk.Label(label=title)
-        title_label.add_css_class("empty-state-title")
-        self.append(title_label)
-
-        # Subtitle
-        subtitle_label = Gtk.Label(label=subtitle)
-        subtitle_label.add_css_class("empty-state-subtitle")
-        subtitle_label.add_css_class("dim-label")
-        self.append(subtitle_label)
+    def _on_edit_clicked(self, button: Gtk.Button) -> None:
+        if self._on_edit:
+            self._on_edit(self.note)
 
 
 class PopupWindow(Adw.ApplicationWindow):
@@ -602,7 +193,6 @@ class PopupWindow(Adw.ApplicationWindow):
         self.clipboard = Gdk.Display.get_default().get_clipboard()
         self._current_filter = ""
         self._current_tab = "clipboard"
-        self._expanded_note_row: Optional[NoteRow] = None
 
         # Hotkey info (set by main.py after creation)
         self.hotkey_backend_name: Optional[str] = None
@@ -622,7 +212,7 @@ class PopupWindow(Adw.ApplicationWindow):
     def _build_ui(self) -> None:
         """Build the UI components."""
         self.set_title("ClipNote")
-        self.set_default_size(550, 520)
+        self.set_default_size(550, 600)
         self.set_hide_on_close(True)
         self.add_css_class("clipnote-window")
 
@@ -679,56 +269,10 @@ class PopupWindow(Adw.ApplicationWindow):
 
         main_box.append(header)
 
-        # Tab bar container
-        tab_container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        tab_container.set_halign(Gtk.Align.CENTER)
-        tab_container.set_margin_top(8)
-        tab_container.set_margin_bottom(12)
-
-        # Tab bar with linked buttons
-        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        tab_box.add_css_class("linked")
-        tab_box.add_css_class("tab-bar")
-
-        self.clipboard_tab_btn = Gtk.ToggleButton()
-        clip_tab_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        clip_tab_icon = Gtk.Image.new_from_icon_name("edit-paste-symbolic")
-        clip_tab_icon.set_pixel_size(16)
-        clip_tab_content.append(clip_tab_icon)
-        clip_tab_content.append(Gtk.Label(label="Clipboard"))
-        self.clipboard_tab_btn.set_child(clip_tab_content)
-        self.clipboard_tab_btn.set_active(True)
-        self.clipboard_tab_btn.connect("toggled", self._on_clipboard_tab_toggled)
-        tab_box.append(self.clipboard_tab_btn)
-
-        self.notes_tab_btn = Gtk.ToggleButton()
-        notes_tab_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        notes_tab_icon = Gtk.Image.new_from_icon_name("notepad-symbolic")
-        notes_tab_icon.set_pixel_size(16)
-        notes_tab_content.append(notes_tab_icon)
-        notes_tab_content.append(Gtk.Label(label="Notes"))
-        self.notes_tab_btn.set_child(notes_tab_content)
-        self.notes_tab_btn.connect("toggled", self._on_notes_tab_toggled)
-        tab_box.append(self.notes_tab_btn)
-
-        self.emoji_tab_btn = Gtk.ToggleButton()
-        emoji_tab_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        emoji_tab_icon = Gtk.Image.new_from_icon_name("face-smile-symbolic")
-        emoji_tab_icon.set_pixel_size(16)
-        emoji_tab_content.append(emoji_tab_icon)
-        emoji_tab_content.append(Gtk.Label(label="Emojis"))
-        self.emoji_tab_btn.set_child(emoji_tab_content)
-        self.emoji_tab_btn.connect("toggled", self._on_emoji_tab_toggled)
-        tab_box.append(self.emoji_tab_btn)
-
-        tab_container.append(tab_box)
-        main_box.append(tab_container)
-
-        # Content stack
-        self.content_stack = Gtk.Stack()
+        # Content View Stack
+        self.content_stack = Adw.ViewStack()
         self.content_stack.set_vexpand(True)
-        self.content_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
-        self.content_stack.set_transition_duration(200)
+        self.content_stack.connect("notify::visible-child-name", self._on_tab_changed)
 
         # ===== CLIPBOARD TAB =====
         clipboard_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -740,8 +284,11 @@ class PopupWindow(Adw.ApplicationWindow):
         self.listbox = Gtk.ListBox()
         self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.listbox.set_activate_on_single_click(False)
-        self.listbox.add_css_class("clip-list")
-        self.listbox.add_css_class("background")
+        self.listbox.add_css_class("boxed-list")
+        self.listbox.set_margin_top(12)
+        self.listbox.set_margin_bottom(12)
+        self.listbox.set_margin_start(12)
+        self.listbox.set_margin_end(12)
         self.listbox.connect("row-activated", self._on_row_activated)
         gesture = Gtk.GestureClick()
         gesture.set_button(1)
@@ -750,11 +297,10 @@ class PopupWindow(Adw.ApplicationWindow):
         clip_scrolled.set_child(self.listbox)
 
         # Empty state for clipboard
-        self.clip_empty = EmptyState(
-            "edit-paste-symbolic",
-            "No clipboard history",
-            "Copy something to get started"
-        )
+        self.clip_empty = Adw.StatusPage()
+        self.clip_empty.set_icon_name("edit-paste-symbolic")
+        self.clip_empty.set_title("No Clipboard History")
+        self.clip_empty.set_description("Copy something to get started")
 
         self.clip_stack = Gtk.Stack()
         self.clip_stack.set_vexpand(True)
@@ -763,7 +309,10 @@ class PopupWindow(Adw.ApplicationWindow):
         self.clip_stack.set_visible_child_name("empty")
 
         clipboard_box.append(self.clip_stack)
-        self.content_stack.add_named(clipboard_box, "clipboard")
+
+        page = self.content_stack.add_named(clipboard_box, "clipboard")
+        page.set_title("Clipboard")
+        page.set_icon_name("edit-paste-symbolic")
 
         # ===== NOTES TAB =====
         notes_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -775,8 +324,11 @@ class PopupWindow(Adw.ApplicationWindow):
         self.notes_listbox = Gtk.ListBox()
         self.notes_listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.notes_listbox.set_activate_on_single_click(False)
-        self.notes_listbox.add_css_class("clip-list")
-        self.notes_listbox.add_css_class("background")
+        self.notes_listbox.add_css_class("boxed-list")
+        self.notes_listbox.set_margin_top(12)
+        self.notes_listbox.set_margin_bottom(12)
+        self.notes_listbox.set_margin_start(12)
+        self.notes_listbox.set_margin_end(12)
         self.notes_listbox.connect("row-activated", self._on_note_row_activated)
         notes_gesture = Gtk.GestureClick()
         notes_gesture.set_button(1)
@@ -785,11 +337,10 @@ class PopupWindow(Adw.ApplicationWindow):
         notes_scrolled.set_child(self.notes_listbox)
 
         # Empty state for notes
-        self.notes_empty = EmptyState(
-            "notepad-symbolic",
-            "No notes yet",
-            "Click + to create a quick note"
-        )
+        self.notes_empty = Adw.StatusPage()
+        self.notes_empty.set_icon_name("notepad-symbolic")
+        self.notes_empty.set_title("No Notes Yet")
+        self.notes_empty.set_description("Click + to create a quick note")
 
         self.notes_stack = Gtk.Stack()
         self.notes_stack.set_vexpand(True)
@@ -798,7 +349,10 @@ class PopupWindow(Adw.ApplicationWindow):
         self.notes_stack.set_visible_child_name("empty")
 
         notes_box.append(self.notes_stack)
-        self.content_stack.add_named(notes_box, "notes")
+
+        page = self.content_stack.add_named(notes_box, "notes")
+        page.set_title("Notes")
+        page.set_icon_name("notepad-symbolic")
 
         # ===== EMOJI TAB =====
         emoji_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -810,6 +364,8 @@ class PopupWindow(Adw.ApplicationWindow):
         self.emoji_flowbox.set_max_children_per_line(10)
         self.emoji_flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
         self.emoji_flowbox.set_homogeneous(True)
+        self.emoji_flowbox.set_column_spacing(4)
+        self.emoji_flowbox.set_row_spacing(4)
         self.emoji_flowbox.add_css_class("emoji-flowbox")
         self.emoji_flowbox.set_margin_start(12)
         self.emoji_flowbox.set_margin_end(12)
@@ -818,9 +374,19 @@ class PopupWindow(Adw.ApplicationWindow):
 
         emoji_scrolled.set_child(self.emoji_flowbox)
         emoji_box.append(emoji_scrolled)
-        self.content_stack.add_named(emoji_box, "emojis")
+
+        page = self.content_stack.add_named(emoji_box, "emojis")
+        page.set_title("Emojis")
+        page.set_icon_name("face-smile-symbolic")
 
         main_box.append(self.content_stack)
+
+        # View Switcher Bar (Bottom Navigation)
+        switcher_bar = Adw.ViewSwitcherBar()
+        switcher_bar.set_stack(self.content_stack)
+        switcher_bar.set_reveal(True)
+        main_box.append(switcher_bar)
+
         self.set_content(main_box)
 
     def _setup_keyboard(self) -> None:
@@ -855,12 +421,14 @@ class PopupWindow(Adw.ApplicationWindow):
                     self._delete_note(selected_row.note["id"])
             return True
         elif keyval == Gdk.KEY_Tab:
-            if self._current_tab == "clipboard":
-                self.notes_tab_btn.set_active(True)
-            elif self._current_tab == "notes":
-                self.emoji_tab_btn.set_active(True)
-            else:
-                self.clipboard_tab_btn.set_active(True)
+            # We can use the view stack to switch pages
+            pages = ["clipboard", "notes", "emojis"]
+            try:
+                idx = pages.index(self._current_tab)
+                next_idx = (idx + 1) % len(pages)
+                self.content_stack.set_visible_child_name(pages[next_idx])
+            except ValueError:
+                self.content_stack.set_visible_child_name("clipboard")
             return True
         return False
 
@@ -957,34 +525,23 @@ class PopupWindow(Adw.ApplicationWindow):
 
     # ===== TAB SWITCHING =====
 
-    def _on_clipboard_tab_toggled(self, button: Gtk.ToggleButton) -> None:
-        if button.get_active():
-            self._current_tab = "clipboard"
-            self.notes_tab_btn.set_active(False)
-            self.emoji_tab_btn.set_active(False)
-            self.content_stack.set_visible_child_name("clipboard")
+    def _on_tab_changed(self, stack: Adw.ViewStack, param) -> None:
+        """Handle tab switching."""
+        name = stack.get_visible_child_name()
+        self._current_tab = name
+
+        # Update UI state based on tab
+        if name == "clipboard":
             self.search_entry.set_placeholder_text("Search clipboard...")
             self.clear_btn.set_visible(True)
             self.add_note_btn.set_visible(False)
             self._populate_list()
-
-    def _on_notes_tab_toggled(self, button: Gtk.ToggleButton) -> None:
-        if button.get_active():
-            self._current_tab = "notes"
-            self.clipboard_tab_btn.set_active(False)
-            self.emoji_tab_btn.set_active(False)
-            self.content_stack.set_visible_child_name("notes")
+        elif name == "notes":
             self.search_entry.set_placeholder_text("Search notes...")
             self.clear_btn.set_visible(False)
             self.add_note_btn.set_visible(True)
             self._populate_notes_list()
-
-    def _on_emoji_tab_toggled(self, button: Gtk.ToggleButton) -> None:
-        if button.get_active():
-            self._current_tab = "emojis"
-            self.clipboard_tab_btn.set_active(False)
-            self.notes_tab_btn.set_active(False)
-            self.content_stack.set_visible_child_name("emojis")
+        elif name == "emojis":
             self.search_entry.set_placeholder_text("Search emojis...")
             self.clear_btn.set_visible(False)
             self.add_note_btn.set_visible(False)
@@ -1033,9 +590,6 @@ class PopupWindow(Adw.ApplicationWindow):
 
     def _populate_notes_list(self) -> None:
         """Populate the notes list."""
-        # Reset expanded note tracking
-        self._expanded_note_row = None
-
         while True:
             row = self.notes_listbox.get_row_at_index(0)
             if row is None:
@@ -1052,10 +606,8 @@ class PopupWindow(Adw.ApplicationWindow):
             row = NoteRow(
                 note,
                 on_delete=self._delete_note,
-                on_save=self._save_note,
-                on_pin=self._pin_note,
-                on_color_change=self._change_note_color,
-                on_expand=self._on_note_expand
+                on_edit=self._edit_note,
+                on_pin=self._pin_note
             )
             self.notes_listbox.append(row)
 
@@ -1067,11 +619,9 @@ class PopupWindow(Adw.ApplicationWindow):
             if first_row:
                 self.notes_listbox.select_row(first_row)
 
-    def _on_note_expand(self, note_row: NoteRow) -> None:
-        """Handle note expansion - ensure only one is expanded at a time."""
-        if self._expanded_note_row and self._expanded_note_row != note_row:
-            self._expanded_note_row.collapse()
-        self._expanded_note_row = note_row
+    def _edit_note(self, note: dict) -> None:
+        """Open dialog to edit note."""
+        self._show_new_note_dialog(note)
 
     def _save_note(self, note_id: str, title: str, body: str) -> None:
         """Save a note (from inline editing)."""
@@ -1084,11 +634,12 @@ class PopupWindow(Adw.ApplicationWindow):
     def _on_add_note_clicked(self, button: Gtk.Button) -> None:
         self._show_new_note_dialog()
 
-    def _show_new_note_dialog(self) -> None:
-        """Show a dialog to create a new note."""
+    def _show_new_note_dialog(self, existing_note: Optional[dict] = None) -> None:
+        """Show a dialog to create or edit a note."""
+        is_edit = existing_note is not None
         dialog = Adw.MessageDialog(
             transient_for=self,
-            heading="New Note",
+            heading="Edit Note" if is_edit else "New Note",
         )
 
         content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
@@ -1108,6 +659,8 @@ class PopupWindow(Adw.ApplicationWindow):
         title_entry = Gtk.Entry()
         title_entry.set_placeholder_text("Enter title...")
         title_entry.add_css_class("note-title-entry")
+        if is_edit:
+            title_entry.set_text(existing_note.get("title", ""))
         title_box.append(title_entry)
         content_box.append(title_box)
 
@@ -1129,6 +682,8 @@ class PopupWindow(Adw.ApplicationWindow):
         body_text.set_left_margin(12)
         body_text.set_right_margin(12)
         body_text.add_css_class("note-body-view")
+        if is_edit:
+            body_text.get_buffer().set_text(existing_note.get("body", ""))
         body_scrolled.set_child(body_text)
         body_frame.set_child(body_scrolled)
         body_box.append(body_frame)
@@ -1141,7 +696,8 @@ class PopupWindow(Adw.ApplicationWindow):
         color_label.add_css_class("dim-label")
         color_box.append(color_label)
 
-        selected_color = ["blue"]  # Use list to allow modification in nested function
+        initial_color = existing_note.get("color", "blue") if is_edit else "blue"
+        selected_color = [initial_color]
 
         for color_name in NOTE_COLORS.keys():
             btn = Gtk.ToggleButton()
@@ -1149,7 +705,7 @@ class PopupWindow(Adw.ApplicationWindow):
             btn.add_css_class("color-picker-button")
             btn.add_css_class(f"color-btn-{color_name}")
             btn.set_tooltip_text(color_name.capitalize())
-            if color_name == "blue":
+            if color_name == initial_color:
                 btn.set_active(True)
                 btn.add_css_class("selected")
 
@@ -1183,8 +739,13 @@ class PopupWindow(Adw.ApplicationWindow):
                 start, end = buffer.get_bounds()
                 body = buffer.get_text(start, end, False)
 
-                note_id = str(uuid.uuid4())
-                self.db.add_note(note_id, title, body, time.time(), selected_color[0])
+                if is_edit:
+                    self.db.update_note(existing_note["id"], title, body)
+                    self.db.update_note_color(existing_note["id"], selected_color[0])
+                else:
+                    note_id = str(uuid.uuid4())
+                    self.db.add_note(note_id, title, body, time.time(), selected_color[0])
+
                 self._populate_notes_list()
 
         dialog.connect("response", on_response)
@@ -1199,13 +760,14 @@ class PopupWindow(Adw.ApplicationWindow):
         self._populate_notes_list()
 
     def _on_note_row_activated(self, listbox: Gtk.ListBox, row) -> None:
-        pass
+        # Open edit dialog on click
+        if hasattr(row, "note"):
+            self._show_new_note_dialog(row.note)
 
     def _on_notes_list_click(self, gesture: Gtk.GestureClick, n_press: int, x: float, y: float) -> None:
-        if n_press == 2:
-            selected_row = self.notes_listbox.get_selected_row()
-            if selected_row and hasattr(selected_row, "note"):
-                self._copy_note_to_clipboard(selected_row.note)
+        # Removed double click logic since single click (activation) now opens edit
+        # Or we can keep double click to copy
+        pass
 
     def _copy_note_to_clipboard(self, note: dict) -> None:
         body = note.get("body", "")
